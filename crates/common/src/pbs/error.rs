@@ -1,7 +1,8 @@
 use alloy::primitives::{B256, U256};
+use lh_types::ForkName;
 use thiserror::Error;
 
-use crate::{types::BlsPublicKeyBytes, utils::ResponseReadError};
+use crate::{types::BlsPublicKeyBytes, wire::ResponseReadError};
 
 #[derive(Debug, Error)]
 pub enum PbsError {
@@ -28,6 +29,9 @@ pub enum PbsError {
 
     #[error("tokio join error: {0}")]
     TokioJoinError(#[from] tokio::task::JoinError),
+
+    #[error("SSZ error: {0}")]
+    SszError(#[from] SszValueError),
 }
 
 impl PbsError {
@@ -35,24 +39,27 @@ impl PbsError {
         matches!(self, PbsError::Reqwest(err) if err.is_timeout())
     }
 
+    /// Extract the HTTP status code from relay-originated errors.
+    fn relay_status_code(&self) -> Option<u16> {
+        match self {
+            PbsError::RelayResponse { code, .. } => Some(*code),
+            PbsError::ReadResponse(ResponseReadError::NonSuccess { status_code, .. }) => {
+                Some(*status_code)
+            }
+            _ => None,
+        }
+    }
+
     /// Whether the error is retryable in requests to relays
     pub fn should_retry(&self) -> bool {
         match self {
-            PbsError::Reqwest(err) => {
-                // Retry on timeout or connection error
-                err.is_timeout() || err.is_connect()
-            }
-            PbsError::RelayResponse { code, .. } => match *code {
-                500..509 => true,   // Retry on server errors
-                400 | 429 => false, // Do not retry if rate limited or bad request
-                _ => false,
-            },
-            _ => false,
+            PbsError::Reqwest(err) => err.is_timeout() || err.is_connect(),
+            _ => matches!(self.relay_status_code(), Some(500..=508)),
         }
     }
 
     pub fn is_not_found(&self) -> bool {
-        matches!(&self, PbsError::RelayResponse { code: 404, .. })
+        self.relay_status_code() == Some(404)
     }
 }
 
@@ -106,4 +113,13 @@ pub enum ValidationError {
 
     #[error("unsupported fork")]
     UnsupportedFork,
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum SszValueError {
+    #[error("invalid payload length: required {required} but payload was {actual}")]
+    InvalidPayloadLength { required: usize, actual: usize },
+
+    #[error("unsupported fork: {name}")]
+    UnsupportedFork { name: ForkName },
 }

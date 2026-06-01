@@ -6,8 +6,9 @@ use serde_json::json;
 use url::Url;
 
 use crate::{
-    config::safe_read_http_response,
+    config::MUXER_HTTP_MAX_LENGTH,
     interop::ssv::types::{SSVNodeResponse, SSVPublicResponse},
+    wire::safe_read_http_response,
 };
 
 pub async fn request_ssv_pubkeys_from_ssv_node(
@@ -28,7 +29,7 @@ pub async fn request_ssv_pubkeys_from_ssv_node(
     })?;
 
     // Parse the response as JSON
-    let body_bytes = safe_read_http_response(response).await?;
+    let body_bytes = safe_read_http_response(response, MUXER_HTTP_MAX_LENGTH).await?;
     serde_json::from_slice::<SSVNodeResponse>(&body_bytes).wrap_err("failed to parse SSV response")
 }
 
@@ -46,7 +47,7 @@ pub async fn request_ssv_pubkeys_from_public_api(
     })?;
 
     // Parse the response as JSON
-    let body_bytes = safe_read_http_response(response).await?;
+    let body_bytes = safe_read_http_response(response, MUXER_HTTP_MAX_LENGTH).await?;
     serde_json::from_slice::<SSVPublicResponse>(&body_bytes)
         .wrap_err("failed to parse SSV response")
 }
