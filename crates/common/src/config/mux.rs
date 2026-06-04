@@ -18,13 +18,14 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
 use url::Url;
 
-use super::{MUX_PATH_ENV, PbsConfig, RelayConfig, load_optional_env_var};
+use super::{MUX_PATH_ENV, MUXER_HTTP_MAX_LENGTH, PbsConfig, RelayConfig, load_optional_env_var};
 use crate::{
     config::{remove_duplicate_keys, safe_read_http_response},
     interop::{lido::utils::*, ssv::utils::*, stader::utils::*},
     pbs::RelayClient,
     types::{BlsPublicKey, Chain, StaderPool},
     utils::default_bool,
+    wire::safe_read_http_response,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -239,9 +240,10 @@ impl MuxKeysLoader {
                         "Mux keys URL {url} is insecure; consider using HTTPS if possible instead"
                     );
                 }
+                let url = url.as_str();
                 let client = reqwest::ClientBuilder::new().timeout(http_timeout).build()?;
                 let response = client.get(url).send().await?;
-                let pubkey_bytes = safe_read_http_response(response).await?;
+                let pubkey_bytes = safe_read_http_response(response, MUXER_HTTP_MAX_LENGTH).await?;
                 serde_json::from_slice(&pubkey_bytes)
                     .wrap_err("failed to fetch mux keys from HTTP endpoint")
             }
