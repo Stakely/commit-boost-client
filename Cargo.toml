@@ -51,7 +51,7 @@ futures = "0.3.30"
 headers = "0.4.0"
 headers-accept = "0.2.1"
 indexmap = "2.2.6"
-jsonwebtoken = { version = "9.3.1", default-features = false }
+jsonwebtoken = { version = "10.3.0", default-features = false }
 lazy_static = "1.5.0"
 mediatype = "0.20.0"
 lh_eth2 = { package = "eth2", git = "https://github.com/sigp/lighthouse", tag = "v8.1.3", features = ["events"] }
